@@ -523,7 +523,7 @@ class CScrollList:
         sb = Scrollbar(frame, orient = VERTICAL)
         sb2 = Scrollbar(frame, orient = HORIZONTAL)
         lb = Listbox(frame, yscrollcommand = sb.set, xscrollcommand = sb2.set, selectmode = selMode,
-            selectbackground = '#ffff00',
+            selectbackground = '#ffff00', selectforeground = '#000',
             disabledforeground = '#ff0000', exportselection = 0, height = height, width = width)
         sb.config(command = lb.yview)
         sb2.config(command = lb.xview)
