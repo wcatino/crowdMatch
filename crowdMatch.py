@@ -8,6 +8,7 @@ import getpass  # for getting password from user input
 import heapq
 import itertools
 import math
+import multiprocessing
 import MySQLdb
 import random
 import re
@@ -20,14 +21,14 @@ def ScrollListScale(w, h):
     return w,h
     #return int(w * 0.5), int(h)
 
-def SimilarityFunction_Zero(app, node0, node1):
-    return -math.fabs(node0 - node1) / 100.0
+def SimilarityFunction_Zero(node0String, node1String):
+    return 0
 
-def SimilarityFunction_FuzzTokenSortRatio(app, node0, node1):
-    return fuzz.token_sort_ratio(app.listFiltered.GetStringFromFullIndex(node0), app.listFiltered.GetStringFromFullIndex(node1)) / 100.0
+def SimilarityFunction_FuzzTokenSortRatio((node0String, node1String)):
+    return fuzz.token_sort_ratio(node0String, node1String)
     
-def SimilarityFunction_FuzzTokenSetRatio(app, node0, node1):
-    return fuzz.token_set_ratio(app.listFiltered.GetStringFromFullIndex(node0), app.listFiltered.GetStringFromFullIndex(node1)) / 100.0
+def SimilarityFunction_FuzzTokenSetRatio((node0String, node1String)):
+    return fuzz.token_set_ratio(node0String, node1String)
     
 def LerpClamp(x, x0, x1, y0, y1):
     x = min(x1, max(x, x0))
@@ -764,14 +765,22 @@ class CApp:
         
     def SimilarListsLeftUpdate(self):
         LIST_LEN = 400
+        nodeSelectedString = self.listFiltered.GetStringFromFullIndex(self.nodeSelected)
         for slp in self.scrollListPairs[1:]:
             # update the left hand list
-            leftList = []
-            simFunc = slp.similarityFunction
-            for n in self.listFiltered.listIndexFiltered:
-                if n not in self.nodeSelectedSameNodes:
-                    similarity = simFunc(self, n, self.nodeSelected)
-                    leftList.append((n, similarity))
+            if False:   # single-processor version
+                leftList = []
+                simFunc = slp.similarityFunction
+                for n in self.listFiltered.listIndexFiltered:
+                    if n not in self.nodeSelectedSameNodes:
+                        similarity = simFunc(self.listFiltered.GetStringFromFullIndex(n), nodeSelectedString)
+                        leftList.append((n, similarity))
+            else:   # parallel version
+                p = multiprocessing.Pool()
+                nodeList = [n for n in self.listFiltered.listIndexFiltered if n not in self.nodeSelectedSameNodes]
+                similarities = p.map(slp.similarityFunction, [(nodeSelectedString, self.listFiltered.GetStringFromFullIndex(n)) for n in nodeList])
+                leftList = zip(nodeList, similarities)
+                
             leftList = heapq.nlargest(LIST_LEN, leftList, key = lambda x : x[1])
             leftList = [{'node' : x[0], 'similarity' : x[1], 'text' : '%5.2f %s' % (x[1], self.listFiltered.GetStringFromFullIndex(x[0]))} for x in leftList]
             slp.sl[0].DataSet(leftList)
