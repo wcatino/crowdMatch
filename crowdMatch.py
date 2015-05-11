@@ -13,6 +13,7 @@ import MySQLdb
 import random
 import re
 import sys
+import traceback
 
 # global variables here
 myPad = 2   # tweak padding of GUI elements for aesthetics
@@ -437,7 +438,6 @@ class CDb:
         self.cur.execute(cmd)
         relations = self.cur.fetchall()
         print '%d relations loaded.' % len(relations)
-        print 'relations:', relations[:10]
         return relations
         
 class CListFiltered:
@@ -520,7 +520,6 @@ class CScrollList:
         
     def Create(self, frame, listContents, gridx, gridy, selMode = BROWSE, height = None, width = None):
         width, height = ScrollListScale(width, height)
-        print 'Create: height = ', height, ', width = ', width
         sb = Scrollbar(frame, orient = VERTICAL)
         sb2 = Scrollbar(frame, orient = HORIZONTAL)
         lb = Listbox(frame, yscrollcommand = sb.set, xscrollcommand = sb2.set, selectmode = selMode,
@@ -761,9 +760,10 @@ class CApp:
         self.slp0.sl[0].SetSingleSelection(0)
 
         self.LabelLengthUpdate()
-        self.OnLb0Select(None)
+        self.OnLb0Select(None, bUpdateSimilarLists = False)
         
     def SimilarListsLeftUpdate(self):
+        #traceback.print_stack()
         LIST_LEN = 400
         nodeSelectedString = self.listFiltered.GetStringFromFullIndex(self.nodeSelected)
         for slp in self.scrollListPairs[1:]:
@@ -826,7 +826,8 @@ class CApp:
         self.slWordFilters.DataSet([{'text':s} for s in listWords])
         self.slWordFilters.SetSingleSelection(None)        # scroll to top of list
 
-    def OnLb0Select(self, eventObject):
+    def OnLb0Select(self, eventObject, bUpdateSimilarLists = True):
+        #print 'OnLb0Select(): event = ', eventObject
         self.CursorSetBusy(True)
         selections = self.lb0.curselection()
         if len(selections):
@@ -838,7 +839,7 @@ class CApp:
         else:
             self.nodeSelected = 0
             self.nodeSelectedSameNodes = []
-        print 'OnLb0Select: iSelectionFiltered = ', iSelectionFiltered, ', nodeSelected = ', self.nodeSelected
+        #print 'OnLb0Select: iSelectionFiltered = ', iSelectionFiltered, ', nodeSelected = ', self.nodeSelected
 
         self.UpdateWordList()
         
@@ -846,7 +847,8 @@ class CApp:
         sameNodes = self.nodeSelectedSameNodes
         self.slp0.sl[1].DataSet([{'node':n, 'text':'%5d %s' % (self.listFiltered.listFull[n]['freq'], self.listFiltered.GetStringFromFullIndex(n))} for n in sameNodes])
         self.slp0.sl[1].SetSingleSelection(None)
-        self.SimilarListsLeftUpdate()
+        if bUpdateSimilarLists:
+            self.SimilarListsLeftUpdate()
         self.CursorSetBusy(False)
         
     def LabelLengthUpdate(self):
@@ -1012,7 +1014,7 @@ if __name__ == "__main__":
     print 'Connecting to database...'
     
     graph = CGraph()
-    graph.Test()
+    #graph.Test()
 
     db = CDb(username, password)
     
