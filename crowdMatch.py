@@ -21,6 +21,7 @@ myPad = 2   # tweak padding of GUI elements for aesthetics
 def ScrollListScale(w, h):
     return w,h
     #return int(w * 0.5), int(h)
+    #return int(w * 2.0), int(h * 1.5)
 
 def SimilarityFunction_Zero(node0String, node1String):
     return 0
@@ -608,19 +609,15 @@ class CApp:
         
         frameBetweenLists = MyFrame(frame)
         frameBetweenLists.grid(row = 1, column = 0, sticky = E + W, padx = 5, pady = 5)
-        #frameBetweenLists.grid_columnconfigure(0, weight = 1)
 
         frameLists = MyFrame(frame)
         frameLists.grid(row = 2, column = 0, sticky = E + W, padx = 5, pady = 5)
         
         frameBottom = MyFrame(frame)
         frameBottom.grid(row = 3, column = 0, sticky = S + E + W, padx = 5, pady = 5)
-        frameBottom.grid_columnconfigure(0, weight = 1)
 
         # frameTopList
         curRow = 0
-        frameTopList.grid_columnconfigure(1, weight = 1)
-        frameTopList.grid_rowconfigure(1, weight = 1)
         self.labelTitle = Label(frameTopList, text = ' ')#'crowdMatch')
         self.labelTitle.grid(row = curRow, column = 0, sticky = N + E + W, padx = myPad, pady = myPad)
 
@@ -743,7 +740,33 @@ class CApp:
         curRow += 1
                 
         self.ListsUpdate()
+        
+        if True:    # make all grid rows and columns have weight 1
+            self.RecurseAddWeight(self.master)
 
+    def RecurseAddWeight(self, w):
+        #print 'w = ', w,
+        nCols, nRows = w.grid_size()
+
+        if True:
+            theWeight = 1
+        else:
+            if w.winfo_class() == 'Listbox':
+                theWeight = 2
+            else:
+                theWeight = 1
+
+        if nCols >= 0 and nRows >= 0:
+            for iRow in xrange(nRows):
+                w.rowconfigure(iRow, weight = theWeight)
+            for iCol in xrange(nCols):
+                w.columnconfigure(iCol, weight = theWeight)
+            
+        #print '  ({} x {})'.format(nCols, nRows),  w.winfo_class()
+        for ww in w.grid_slaves():           #winfo_children():
+            self.RecurseAddWeight(ww)
+        
+        
     def CursorSetBusy(self, bBusy = True):
         if bBusy:
             self.master.config(cursor = "watch")
