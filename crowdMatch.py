@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from Tkinter import *
+import argparse
 import datetime
 import functools
 from fuzzywuzzy import fuzz
@@ -578,7 +579,6 @@ class CScrollListPair:
         self.sl[1].DataSet([{'node' : n, 'text': self.app.listFiltered.GetStringFromFullIndex(n)} for n in sorted(sameNodes)])
         self.sl[1].SetSingleSelection(None)
 
-
 class CApp:
         
     def __init__(self, master, db, graph):
@@ -913,9 +913,7 @@ class CApp:
         bClickInc = False
 
         i0 = self.RestoreSelection_Set()
-        
-        self.db.VoteBegin(iSame, self.clickCount)
-                       
+                     
         set0 = set([i0])
         set0.update(set(self.graph.GetNeighborsSame(i0)))
         
@@ -955,9 +953,21 @@ class CApp:
         if bSame or diffSubset == 'individuals':   # only for same or individualsSubset do we connect all elements of set1 to each other
             pairs.extend(itertools.combinations(set1, 2))
             print '  pairs1:', pairs
+            
+        bVoteBegan = False
         for idx0, idx1 in pairs:
             print "%3d.  %d and %d are %s" % (self.clickCount, idx0, idx1, strSameOrDiff)
+            if not bVoteBegan:
+                nVotes = 0
+                self.db.VoteBegin(iSame, self.clickCount)
+
             self.db.VoteAdd(idx0, idx1)
+            nVotes += 1
+            
+            if nVotes > 500:
+                self.db.VoteEnd()
+                bVoteBegan = False
+
             self.graph.EdgeAdd(idx0, idx1, edgeValue)
             bClickInc = True
 
@@ -1028,9 +1038,37 @@ class CApp:
         else:
             self.sl1.SetSingleSelection(self.sl0.lb.curselection()[0])
 
-            
+    def ClusterFileWrite(self, filename):
+        ''' write the list of clusters in order of decreasing size
+        '''
+        print 'Writing Cluster file: ', filename, '...'
+
+        # form list of nodes, sorted by number of neighbors
+        nodes = [(i, self.graph.GetNumNeighborsSame(i)) for i in xrange(self.listFiltered.lenFull)]
+        nodes.sort(key = lambda x: x[1], reverse = True)
+        nodes = [n[0] for n in nodes]   # just the indices
+        
+        with open(filename, 'wb') as f:
+            # for each node, inc iCluster, write all neighbors, and remove them from the list
+            iCluster = -1
+            while len(nodes):
+                iCluster += 1
+                n0 = nodes[0]
+                list = [n0] + self.graph.GetNeighborsSame(n0)
+                #print 'list = ', list
+                for n1 in list:
+                    nodes.remove(n1)
+                    f.write('{0:3d}\t{1:5d}\t"{2:s}"\n'.format(iCluster, n1, self.listFiltered.listFull[n1]['data'].encode('ascii', 'replace')))
+        print 'Done.'
+
 ##########################################################################################      
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-clusterfile", default = None, help = "signals the saving of the clusters to the named file",
+                                    action = "store")
+    args = parser.parse_args()
+
     print datetime.datetime.now().isoformat()
     username = raw_input('Please enter your username: ')
     password = getpass.getpass('Enter password for database: ')
@@ -1046,8 +1084,12 @@ if __name__ == "__main__":
         for r in relations:
             graph.EdgeAdd(r[0], r[1], 1 if r[2] == 1 else -1)
         print 'Relations loaded.'
-    
+
     root = Tk()
     app = CApp(root, db, graph)
+    
+    if args.clusterfile:
+        app.ClusterFileWrite(args.clusterfile)
+        
     root.mainloop()
     root.destroy() # optional; see description below
